@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .container {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .column {
+      flex: 1;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .event-card {
+      border-left: 4px solid #ccc;
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #fafafa;
+    }
+
+    .event-card h3 {
+      margin-top: 0;
+    }
+
+    .btn {
+      padding: 6px 10px;
+      margin-right: 8px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .approve-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .reject-btn {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Admin Event Approval Dashboard</h1>
+
+<div class="container">
+  <!-- Pending Column -->
+  <div class="column">
+    <h2>Incoming Requests</h2>
+    {% for event in pending_events %}
+      <div class="event-card">
+        <h3>{{ event.name }}</h3>
+        <p><strong>Category:</strong> {{ event.category }}</p>
+        <p><strong>Date:</strong> {{ event.date }}</p>
+        <p><strong>Time:</strong> {{ event.time }}</p>
+        <p><strong>Description:</strong> {{ event.description }}</p>
+
+        <form method="POST" action="{% url 'approve_event' event.id %}" style="display:inline-block;">
+          {% csrf_token %}
+          <button type="submit" class="btn approve-btn">Approve</button>
+        </form>
+        <form method="POST" action="{% url 'reject_event' event.id %}" style="display:inline-block;">
+          {% csrf_token %}
+          <button type="submit" class="btn reject-btn">Reject</button>
+        </form>
+      </div>
+    {% empty %}
+      <p>No pending requests.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Approved Column -->
+  <div class="column">
+    <h2>Approved Events</h2>
+    {% for event in approved_events %}
+      <div class="event-card">
+        <h3>{{ event.name }}</h3>
+        <p><strong>Category:</strong> {{ event.category }}</p>
+        <p><strong>Date:</strong> {{ event.date }}</p>
+        <p><strong>Time:</strong> {{ event.time }}</p>
+        <p><strong>Description:</strong> {{ event.description }}</p>
+      </div>
+    {% empty %}
+      <p>No approved events.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Rejected Column -->
+  <div class="column">
+    <h2>Rejected Events</h2>
+    {% for event in rejected_events %}
+      <div class="event-card">
+        <h3>{{ event.name }}</h3>
+        <p><strong>Category:</strong> {{ event.category }}</p>
+        <p><strong>Date:</strong> {{ event.date }}</p>
+        <p><strong>Time:</strong> {{ event.time }}</p>
+        <p><strong>Description:</strong> {{ event.description }}</p>
+      </div>
+    {% empty %}
+      <p>No rejected events.</p>
+    {% endfor %}
+  </div>
+</div>
+
+</body>
+</html>
