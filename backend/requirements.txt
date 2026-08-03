@@ -1,0 +1,5 @@
+# Backend dependencies for the UniSphere Django API
+Django==5.2.1
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
