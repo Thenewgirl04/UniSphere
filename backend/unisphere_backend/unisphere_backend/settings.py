@@ -26,7 +26,18 @@ SECRET_KEY = "django-insecure-3&*)41%^7ulgf9_*^48r8mj!h^av_)1fnc!m_tq@v9@e^fco9j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '10.0.2.2']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '10.0.2.2', '[::1]']
+
+if DEBUG:
+    import socket
+
+    try:
+        _socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        _socket.connect(('8.8.8.8', 80))
+        ALLOWED_HOSTS.append(_socket.getsockname()[0])
+        _socket.close()
+    except OSError:
+        pass
 
 
 # Application definition
@@ -46,13 +57,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

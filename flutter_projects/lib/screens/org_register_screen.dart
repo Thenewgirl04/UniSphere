@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-
-import '../theme/theme.dart';
-import 'org_login_screen.dart';
+import 'package:flutter_projects/core/api/auth_service.dart';
+import 'package:flutter_projects/screens/org_login_screen.dart';
+import 'package:flutter_projects/theme/theme.dart';
 
 class OrgRegisterScreen extends StatefulWidget {
   const OrgRegisterScreen({super.key});
@@ -14,122 +11,94 @@ class OrgRegisterScreen extends StatefulWidget {
 }
 
 class _OrgRegisterScreenState extends State<OrgRegisterScreen> {
+  final _authService = AuthService();
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  String errorText = '';
-  bool isLoading = false;
+  bool _isLoading = false;
+  String _errorText = '';
 
-  Future<void> registerOrg() async{
-    final url = Uri.parse('http://10.0.2.2:8000/api/org/register/');
-    setState(() => isLoading = true);
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
-    final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-        "name": nameController.text.trim(),
-        "email": emailController.text.trim(),
-        "password": passwordController.text.trim(),
-        }),
-    );
+  Future<void> _register() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = '';
+    });
 
-    setState(() => isLoading = false);
-
-    if (response.statusCode == 201) {
-      final responseBody = jsonDecode(response.body);
-      print('Org name from backend: ${responseBody['org']}');
-      final orgName = responseBody['org'];
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('orgName', orgName);
-
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful. Please log in.')),
+    try {
+      await _authService.registerOrganization(
+        name: nameController.text.trim(),
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
       );
 
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration successful. Please log in.')),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const OrgLoginScreen()),
       );
-    } else {
-      print('Registration error response: ${response.body}');
-      final data = jsonDecode(response.body);
-      setState(() {
-        errorText =  data['email']?.join(', ') ??
-            data['password']?.join(', ') ??
-            data['name']?.join(', ') ??
-            data['non_field_errors']?.join(', ') ??
-            'Registration failed';
-      });
+    } on AuthException catch (e) {
+      setState(() => _errorText = e.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Organization Register")),
+      appBar: AppBar(title: const Text('Organization Register')),
       body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(labelText: "Organization Name"),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Organization Name'),
+            ),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            if (_errorText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_errorText, style: const TextStyle(color: Colors.red)),
               ),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(labelText: "Email"),
+            const SizedBox(height: 20),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(onPressed: _register, child: const Text('Register')),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OrgLoginScreen()),
+                );
+              },
+              child: Text(
+                'Already have an account? Sign in',
+                style: TextStyle(color: lightColorScheme.primary, fontWeight: FontWeight.bold),
               ),
-              TextField(
-                controller: passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-              if (errorText.isNotEmpty)
-                Text(errorText, style: TextStyle(color: Colors.red)),
-              SizedBox(height: 20,),
-              isLoading
-                  ? CircularProgressIndicator()
-                  : ElevatedButton(
-                  onPressed: (){
-                    if (!isLoading) {
-                              registerOrg();
-                          }},
-                    child: Text('Register'),
-                    ),
-                    Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                    const Text(
-                    'Already have an account? ',
-                    style: TextStyle(
-                    color: Colors.black45,
-                    ),
-                    ),
-                    GestureDetector(
-                    onTap: () {
-                    Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                    builder: (e) => OrgLoginScreen(),
-                    ),
-                    );
-                    },
-                    child: Text(
-                    'Sign in',
-                    style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: lightColorScheme.primary,
-                    ),
-                    ),
-                    )
-                ],
-              ),
-              ],
-          ),
+            ),
+          ],
+        ),
       ),
     );
   }

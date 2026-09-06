@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../theme/theme.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'org_dash_screen.dart';
-import 'org_main_page.dart';
-import 'org_register_screen.dart';
-
+import 'package:flutter_projects/core/api/auth_service.dart';
+import 'package:flutter_projects/screens/org_main_page.dart';
+import 'package:flutter_projects/screens/org_register_screen.dart';
+import 'package:flutter_projects/theme/theme.dart';
 
 class OrgLoginScreen extends StatefulWidget {
   const OrgLoginScreen({super.key});
@@ -17,104 +12,91 @@ class OrgLoginScreen extends StatefulWidget {
 }
 
 class _OrgLoginScreenState extends State<OrgLoginScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final storage = FlutterSecureStorage();
-  String errorText = '';
-  
-  Future<void> loginOrganization() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/org/login/');
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": emailController.text,
-        "password": passwordController.text,
-      })
-    );
+  final _authService = AuthService();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool _isLoading = false;
+  String _errorText = '';
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final orgName = data['name'];
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = '';
+    });
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('orgName', orgName);
-      final token = data['access'];
-
-      await storage.write(key: 'org_token', value: token);
-
-      setState(() {
-        errorText = '';
-      });
+    try {
+      final data = await _authService.login(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
       if (!mounted) return;
+
+      if (data['user_type'] != 'organization') {
+        setState(() => _errorText = 'This account is not an organization.');
+        await _authService.logout();
+        return;
+      }
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => OrgMainPage(),)
+        MaterialPageRoute(builder: (_) => const OrgMainPage()),
       );
-    } else {
-      print('Login failed: ${response.body}');
-      final data = jsonDecode(response.body);
-      setState(() {
-        errorText = data['error'] ?? 'Login failed';
-      });
+    } on AuthException catch (e) {
+      setState(() => _errorText = e.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Organization Login"),
-      ),
+      appBar: AppBar(title: const Text('Organization Login')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: emailController,
-              decoration: InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             TextField(
               controller: passwordController,
-              decoration: InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
-            if (errorText.isNotEmpty)
-              Text(errorText, style: TextStyle(color: Colors.red)),
-            SizedBox(height: 20,),
-            ElevatedButton(onPressed: loginOrganization, child: Text('Login'),
+            if (_errorText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_errorText, style: const TextStyle(color: Colors.red)),
+              ),
+            const SizedBox(height: 20),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(onPressed: _login, child: const Text('Login')),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OrgRegisterScreen()),
+                );
+              },
+              child: Text(
+                'Need an account? Register',
+                style: TextStyle(color: lightColorScheme.primary, fontWeight: FontWeight.bold),
+              ),
             ),
-    const SizedBox(height: 40,),
-    Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-    const Text(
-    'Don\'t have an account? ',
-    style: TextStyle(
-    color: Colors.black45,
-    ),
-    ),
-    GestureDetector(
-    onTap: () {
-    Navigator.push(
-    context,
-    MaterialPageRoute(
-    builder: (e) => const OrgRegisterScreen(),
-    ),
-    );
-    },
-    child: Text(
-    'Sign up',
-    style: TextStyle(
-    fontWeight: FontWeight.bold,
-    color: lightColorScheme.primary,
-    ),
-    ),
-    ),
-    ],
-    ),
           ],
-        )
+        ),
       ),
     );
   }

@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart'; // for mime types
+import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_projects/core/api/auth_service.dart';
+import 'package:flutter_projects/core/api/event_service.dart';
+import 'package:flutter_projects/core/config/env.dart';
+import 'package:flutter_projects/core/models/uploaded_file.dart';
+import 'package:flutter_projects/screens/entry_screen.dart';
+import 'package:image_picker/image_picker.dart';
 
 class OrgProfileScreen extends StatefulWidget {
   const OrgProfileScreen({super.key});
@@ -13,96 +16,133 @@ class OrgProfileScreen extends StatefulWidget {
 }
 
 class _OrgProfileScreenState extends State<OrgProfileScreen> {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
+  final _eventService = EventService();
+  final _authService = AuthService();
+  final nameController = TextEditingController();
+  final descriptionController = TextEditingController();
+
   String selectedCategory = 'Technology';
-  File? selectedImage;
+  Uint8List? _previewBytes;
+  UploadedFile? _selectedLogo;
+  String? existingLogoUrl;
   bool isLoading = true;
   bool isEditable = false;
+  bool isSaving = false;
 
-  final List<String> categoryOptions = [
-    'Technology',
-    'Wellness',
-    'Arts',
-    'Community',
-    'Education',
-  ];
-
-  final OutlineInputBorder inputBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
-    borderSide: const BorderSide(color: Colors.grey),
-  );
+  final categoryOptions = ['Technology', 'Arts', 'Health', 'Sports'];
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
-    loadOrgProfile();
+    _loadProfile();
   }
 
-  Future<void> loadOrgProfile() async {
-    await Future.delayed(const Duration(seconds: 1));
+  @override
+  void dispose() {
+    nameController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await _eventService.fetchOrgProfile();
+      if (!mounted) return;
+      setState(() {
+        nameController.text = profile['name'] as String? ?? '';
+        descriptionController.text = profile['description'] as String? ?? '';
+        selectedCategory = profile['category'] as String? ?? 'Technology';
+        existingLogoUrl = profile['logo'] as String?;
+        isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final file = await UploadedFile.fromXFile(picked);
     setState(() {
-      nameController.text = 'Tech Club';
-      descriptionController.text = 'We host events about coding, AI, and robotics.';
-      selectedCategory = 'Technology';
-      selectedImage = null; // or File from assets for demo
-      isLoading = false;
+      _selectedLogo = file;
+      _previewBytes = file.bytes;
     });
   }
-  Future<void> pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-    if (picked != null) {
-      setState(() {
-        selectedImage = File(picked.path);
-      });
+  Widget _avatar() {
+    if (_previewBytes != null) {
+      return CircleAvatar(radius: 50, backgroundImage: MemoryImage(_previewBytes!));
     }
-  }
-
-  void saveProfile() async {
-    final url = Uri.parse('http://10.0.2.2:8000/api/org/profile/update/');
-    final request = http.MultipartRequest('PUT',url);
-
-    request.fields['name'] = nameController.text;
-    request.fields['category'] = selectedCategory;
-    request.fields['description'] = descriptionController.text;
-
-    if (selectedImage != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'logo', // Django field name
-          selectedImage!.path,
-          contentType: MediaType('image', 'jpeg'), // or 'png' depending on input
-        ),
+    if (existingLogoUrl != null && existingLogoUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 50,
+        backgroundImage: NetworkImage(Env.mediaUrl(existingLogoUrl)),
       );
     }
-    request.headers['Authorization'] = 'Bearer YOUR_ACCESS_TOKEN';
+    return const CircleAvatar(radius: 50, child: Icon(Icons.business, size: 40));
+  }
 
-    // Send request
-    final response = await request.send();
-
-    if (response.statusCode == 200) {
-      print('Profile updated successfully!');
-    } else {
-      print('Failed to update profile. Status: ${response.statusCode}');
+  Future<void> _saveProfile() async {
+    setState(() => isSaving = true);
+    try {
+      await _eventService.updateOrgProfile(
+        name: nameController.text.trim(),
+        category: selectedCategory,
+        description: descriptionController.text.trim(),
+        logo: _selectedLogo,
+      );
+      if (!mounted) return;
+      setState(() {
+        isEditable = false;
+        isSaving = false;
+        _selectedLogo = null;
+        _previewBytes = null;
+      });
+      await _loadProfile();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated')),
+      );
+    } on EventException catch (e) {
+      if (!mounted) return;
+      setState(() => isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
     }
   }
 
+  Future<void> _logout() async {
+    await _authService.logout();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const EntryScreen()),
+      (_) => false,
+    );
+  }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profile"),
+        title: const Text('Organization Profile'),
         actions: [
-          TextButton(onPressed: () {
-            setState(() {
-              isEditable = !isEditable;
-            });
-          }, child: Text(
-            isEditable ? 'Done' : 'Edit Profile',
-            style: const TextStyle(color: Colors.black),
-          ))
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+          TextButton(
+            onPressed: isLoading
+                ? null
+                : () {
+                    if (isEditable) {
+                      _saveProfile();
+                    } else {
+                      setState(() => isEditable = true);
+                    }
+                  },
+            child: Text(isEditable ? (isSaving ? 'Saving...' : 'Save') : 'Edit'),
+          ),
         ],
       ),
       body: isLoading
@@ -110,99 +150,42 @@ class _OrgProfileScreenState extends State<OrgProfileScreen> {
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   GestureDetector(
-                    onTap: pickImage,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: selectedImage != null
-                        ? FileImage(selectedImage!)
-                          : const AssetImage('assets/images/secpic.jpeg')
-                              as ImageProvider,
-                      child: selectedImage ==  null
-                          ? const Icon(Icons.camera_alt, size: 30, color: Colors.white,)
-                          : null,
-
-                    ),
+                    onTap: isEditable ? _pickImage : null,
+                    child: _avatar(),
                   ),
-                  const SizedBox(height: 20,),
-
+                  const SizedBox(height: 20),
                   TextField(
                     controller: nameController,
                     enabled: isEditable,
-                    style: TextStyle(
-                      color: isEditable ? Colors.black : Colors.black,
-                    ),
-                    decoration:  InputDecoration(
-                      labelText: 'Organization Name',
-                      border: inputBorder,
-                      enabledBorder: inputBorder,
-                      focusedBorder: inputBorder,
-                    ),
+                    decoration: const InputDecoration(labelText: 'Organization Name'),
                   ),
                   const SizedBox(height: 16),
-
-                  DropdownButtonFormField(
-                    value: selectedCategory,
-                      items: categoryOptions
-                        .map((cat) => DropdownMenuItem<String>(
-                          value: cat,
-                          child: Text(cat),
-                      ))
-                      .toList(),
-                      onChanged: isEditable
-                          ? (String? value) {
-                      if (value != null) {
-                        setState(() {
-                          selectedCategory = value;
-                        });
-                      }
-                      }
-                      : null,
-                    decoration: InputDecoration(
-                    labelText: 'Category',
-                    border:inputBorder,
-                      enabledBorder: inputBorder,
-                      focusedBorder: inputBorder,
-                      )
+                  DropdownButtonFormField<String>(
+                    value: categoryOptions.contains(selectedCategory)
+                        ? selectedCategory
+                        : categoryOptions.first,
+                    items: categoryOptions
+                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                        .toList(),
+                    onChanged: isEditable
+                        ? (value) {
+                            if (value != null) setState(() => selectedCategory = value);
+                          }
+                        : null,
+                    decoration: const InputDecoration(labelText: 'Category'),
                   ),
                   const SizedBox(height: 16),
-
                   TextField(
                     controller: descriptionController,
                     enabled: isEditable,
                     maxLines: 5,
-                    style: TextStyle(
-                      color: isEditable ? Colors.black : Colors.black,
-                    ),
-                    decoration:InputDecoration(
-                      labelText: 'Description',
-                      border: inputBorder,
-                      enabledBorder: inputBorder,
-                      focusedBorder: inputBorder,
-                    ),
+                    decoration: const InputDecoration(labelText: 'Description'),
                   ),
-                  const SizedBox(height: 24),
-
-                  if (isEditable)
-                    ElevatedButton(
-                      onPressed:()
-                       {
-                         saveProfile();
-                            setState(() {
-                              isEditable = false;
-                            });
-                          },
-                      style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      child: const Text('Save Changes'),
-                    ),
                 ],
               ),
-      ),
+            ),
     );
   }
 }
