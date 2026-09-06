@@ -40,8 +40,8 @@ Students browse posted events. Organizations submit events for approval. Admins 
 
 | Layer | Technology |
 |-------|------------|
-| Mobile | Flutter, HTTP, Image Picker, Flutter Secure Storage, Shared Preferences |
-| Backend | Django 5, Django REST Framework, SimpleJWT |
+| Mobile | Flutter |
+| Backend | Django 5, Django REST Framework|
 | Database | SQLite (development) |
 | Auth | JWT tokens with role-based permissions |
 
