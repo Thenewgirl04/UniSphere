@@ -1,30 +1,37 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_projects/core/config/env.dart';
+import 'package:flutter_projects/core/models/uploaded_file.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import "package:path/path.dart";
 
 class OrgEveCard extends StatefulWidget {
-  final Map event;
-  final Future<void> Function(int eventId, File imageFile) onPost;
+  const OrgEveCard({
+    super.key,
+    required this.event,
+    required this.onPost,
+  });
 
-
-  const OrgEveCard({super.key, required this.event, required this.onPost});
+  final Map<String, dynamic> event;
+  final Future<void> Function(int eventId, UploadedFile flyer) onPost;
 
   @override
   State<OrgEveCard> createState() => _OrgEveCardState();
 }
 
 class _OrgEveCardState extends State<OrgEveCard> {
-  File? _selectedImage;
+  Uint8List? _previewBytes;
+  UploadedFile? _selectedFile;
+  bool _isPosting = false;
 
-
-  Color _getStatusColor(String status) {
+  Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'approved':
         return Colors.green;
       case 'rejected':
         return Colors.red;
-      case 'pending':
+      case 'posted':
+        return Colors.blue;
       default:
         return Colors.orange;
     }
@@ -32,91 +39,96 @@ class _OrgEveCardState extends State<OrgEveCard> {
 
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _selectedImage = File(picked.path);
-      });
+    if (picked == null) return;
+
+    final file = await UploadedFile.fromXFile(picked);
+    setState(() {
+      _selectedFile = file;
+      _previewBytes = file.bytes;
+    });
+  }
+
+  Future<void> _publish(int eventId) async {
+    if (_selectedFile == null) return;
+
+    setState(() => _isPosting = true);
+    try {
+      await widget.onPost(eventId, _selectedFile!);
+    } finally {
+      if (mounted) setState(() => _isPosting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final String title = widget.event['name'] ?? 'Untitled';
-    final String status = widget.event['status'] ?? 'Pending';
-    final bool isPosted = widget.event['is_posted'] ?? false;
-    final int eventId = widget.event['id'];
+    final title = widget.event['name'] ?? 'Untitled';
+    final status = widget.event['status'] ?? 'pending';
+    final eventId = widget.event['id'] as int;
+    final flyer = widget.event['flyer'] as String?;
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 1.5,
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // Event title
-          Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: _getStatusColor(status).withOpacity(0.2),
-            border: Border.all(color: _getStatusColor(status)),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            status[0].toUpperCase() + status.substring(1),
-            style: TextStyle(
-              color: _getStatusColor(status),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-            const SizedBox(height: 12),
-          if (status == 'approved' && isPosted == false) ...[
-            // Image preview if selected
-            if (_selectedImage != null) ...[
-            Image.file(
-            _selectedImage!,
-            height: 120,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            ),
-              const SizedBox(height: 8),
-              ],
-              // Upload button
-              ElevatedButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.image),
-              label: const Text("Upload Flyer"),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _statusColor(status).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
               ),
-
+              child: Text(
+                status[0].toUpperCase() + status.substring(1),
+                style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (status == 'approved') ...[
+              const SizedBox(height: 12),
+              if (_previewBytes != null)
+                Image.memory(
+                  _previewBytes!,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              const SizedBox(height: 8),
               ElevatedButton.icon(
-            onPressed: _selectedImage == null
-              ? null
-              : () async {
-              await widget.onPost(eventId, _selectedImage!);
-            },
-            icon: const Icon(Icons.send),
-            label: const Text("Post"),
-          ),
-          ],
-            if (isPosted && widget.event['flyer'] != null) ...[
-              SizedBox(height: 8),
+                onPressed: _pickImage,
+                icon: const Icon(Icons.image),
+                label: const Text('Choose Flyer'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _selectedFile == null || _isPosting
+                    ? null
+                    : () => _publish(eventId),
+                icon: _isPosting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
+                label: const Text('Publish Event'),
+              ),
+            ],
+            if (status == 'posted' && flyer != null && flyer.isNotEmpty) ...[
+              const SizedBox(height: 12),
               Image.network(
-                'http://10.0.2.2:8000${widget.event['flyer']}',
+                Env.mediaUrl(flyer),
                 height: 120,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image),
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
               ),
             ],
           ],
-          ),
-          ),
-        );
+        ),
+      ),
+    );
   }
 }

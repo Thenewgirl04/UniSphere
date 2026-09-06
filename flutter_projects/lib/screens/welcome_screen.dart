@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_projects/theme/theme.dart';
 import 'package:flutter_projects/widgets/custom_scaffold.dart';
 import 'package:flutter_projects/widgets/welcome_button.dart';
 

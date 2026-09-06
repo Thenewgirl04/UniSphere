@@ -1,118 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_projects/core/api/auth_service.dart';
+import 'package:flutter_projects/screens/entry_screen.dart';
 import 'package:flutter_projects/theme/theme.dart';
-import 'package:flutter_projects/widgets/Nots_tile.dart';
-import 'package:flutter_projects/widgets/myeve_card.dart';
-import 'package:flutter_projects/widgets/org_card.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  ProfileScreen({
+    super.key,
+    required this.displayName,
+  });
+
+  final String displayName;
+
+  Future<void> _logout(BuildContext context) async {
+    final authService = AuthService();
+    await authService.logout();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const EntryScreen()),
+      (_) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My profile'),
+        title: const Text('My Profile'),
         backgroundColor: lightColorScheme.primary,
+        foregroundColor: Colors.white,
         actions: [
-          IconButton(onPressed: (){
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out')),);
-          }, icon: const Icon(Icons.logout),
-          tooltip: 'Log out',)
+          IconButton(
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage('assets/images/logou.png'),
-              backgroundColor: Colors.grey,
+              radius: 40,
+              child: Icon(Icons.person, size: 40),
             ),
-
-            const Text(
-              'Chinwe Onwuka',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+            const SizedBox(height: 16),
+            Text(
+              displayName.isEmpty ? 'Student' : displayName,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
+            const SizedBox(height: 8),
             const Text(
-              'CS Major, Class of 2028',
+              'Browse posted campus events from your home tab.',
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 10),
-
-            ElevatedButton(onPressed: () {
-
-            },
-              child: const Text('Edit Profile'),
-            ),
-            const SizedBox(height: 30,),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text('My Organizations',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            ),
-            const SizedBox(height: 10,),
-
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  OrgCard(title: 'Black Student Union', imagePath: 'assets/images/logou.png'),
-                  OrgCard(title: 'Techies Club', imagePath: 'assets/images/logou.png'),
-                  OrgCard(title: 'Women in STEM', imagePath: 'assets/images/logou.png'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30,),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'My Events',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 10,),
-
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child:
-            Row(
-              children: [
-                MyeveCard(title: 'Tech Career Fair', date: 'June 28, 2025', ),
-                MyeveCard(title: 'Tech Career Fair', date: 'June 28, 2025', ),
-              ],
-            ),
+          ],
         ),
-            const SizedBox(height: 30,),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Notifications',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 10,),
-
-            Column(
-              children: [
-                NotsTile(icon: Icons.notifications_active, message: 'Event "Tech Career Fair" starts in 2 days!'),
-                NotsTile(
-                  icon: Icons.group,
-                  message: 'You’ve been accepted into Women in STEM!',),
-                NotsTile(
-                  icon: Icons.calendar_today,
-                  message: 'RSVP for "Mindfulness Meetup" ends tomorrow.',
-                ),
-              ],
-            )
-            ],
-
-            ),
-        ),
-      );
+      ),
+    );
   }
 }
