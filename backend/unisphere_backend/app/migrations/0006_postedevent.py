@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("authapp", "0005_eventrequest_is_posted_alter_eventrequest_org"),
+        ("app", "0005_eventrequest_is_posted_alter_eventrequest_org"),
     ]
 
     operations = [

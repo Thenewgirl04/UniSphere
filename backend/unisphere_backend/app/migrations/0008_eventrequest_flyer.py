@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("authapp", "0007_organization_user_type"),
+        ("app", "0007_organization_user_type"),
     ]
 
     operations = [

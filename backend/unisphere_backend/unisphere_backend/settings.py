@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    "authapp",
+    "app.apps.AppConfig",
 ]
 
 MIDDLEWARE = [
@@ -146,7 +146,7 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-AUTH_USER_MODEL = 'authapp.Organization'
+AUTH_USER_MODEL = 'app.Organization'
 
 
 MEDIA_URL = '/media/'

@@ -11,6 +11,20 @@ Students browse posted events. Organizations submit events for approval. Admins 
 - View all posted campus events on the home screen
 - Profile with logout
 
+### Screenshots
+
+| Welcome | Choose a role |
+|---|---|
+| ![UniSphere welcome screen](docs/images/welcome-screen.png) | ![Student and organization role selection](docs/images/role-selection.png) |
+
+| Student sign in | Student event feed |
+|---|---|
+| ![Student sign-in screen](docs/images/student-sign-in.png) | ![Posted events on the student dashboard](docs/images/student-events.png) |
+
+| Django administration | Organization events |
+|---|---|
+| ![Event requests in Django Admin](docs/images/django-admin-events.png) | ![Organization event status screen](docs/images/organization-events.png) |
+
 ### Organizations
 - Register and log in
 - Create event requests (pending admin approval)
@@ -26,7 +40,7 @@ Students browse posted events. Organizations submit events for approval. Admins 
 
 | Layer | Technology |
 |-------|------------|
-| Mobile | Flutter, HTTP, Flutter Secure Storage |
+| Mobile | Flutter, HTTP, Image Picker, Flutter Secure Storage, Shared Preferences |
 | Backend | Django 5, Django REST Framework, SimpleJWT |
 | Database | SQLite (development) |
 | Auth | JWT tokens with role-based permissions |
@@ -35,9 +49,20 @@ Students browse posted events. Organizations submit events for approval. Admins 
 
 ```
 UniSphere/
-├── backend/unisphere_backend/   # Django API
-├── flutter_projects/            # Flutter mobile app
-└── docs/ARCHITECTURE.md         # Architecture guide (start here)
+├── backend/
+│   ├── requirements.txt
+│   └── unisphere_backend/
+│       ├── app/                 # Models, API views, routes, and tests
+│       ├── unisphere_backend/   # Django settings and root routes
+│       └── manage.py
+├── flutter_projects/
+│   ├── lib/
+│   │   ├── core/                # API, configuration, models, and token storage
+│   │   ├── screens/             # Student and organization flows
+│   │   ├── theme/
+│   │   └── widgets/             # Shared, actively used UI components
+│   └── test/
+└── docs/ARCHITECTURE.md
 ```
 
 ## Quick Start
@@ -60,7 +85,17 @@ flutter pub get
 flutter run
 ```
 
-The app uses `http://10.0.2.2:8000` for the Android emulator. Change the base URL in `lib/core/config/env.dart` for iOS simulator (`localhost`) or physical devices (your machine's IP).
+The app selects a development API URL by platform:
+
+- Android emulator: `http://10.0.2.2:8000`
+- iOS, macOS, Windows, and Linux: `http://127.0.0.1:8000`
+- Web: `http://<browser-host>:8000`
+
+For a physical device or custom backend, override it without editing source:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://YOUR_MACHINE_IP:8000
+```
 
 ### 3. Test the Full Flow
 
@@ -88,12 +123,17 @@ The app uses `http://10.0.2.2:8000` for the Android emulator. Change the base UR
 ```bash
 # Backend
 cd backend/unisphere_backend
-python manage.py test authapp
+python manage.py test app
 
-# Flutter
+# Flutter static analysis
 cd flutter_projects
+flutter analyze
+
+# Flutter tests
 flutter test
 ```
+
+The current Flutter test reaches the welcome screen, but its `UNISPHERE` assertion needs a RichText-aware finder before the suite will pass.
 
 ## Future Improvements
 

@@ -43,7 +43,7 @@ stateDiagram-v2
 
 ```
 backend/unisphere_backend/
-├── authapp/
+├── app/
 │   ├── models.py          # Organization (custom user), EventRequest
 │   ├── serializers.py     # Request/response validation
 │   ├── views.py           # REST API endpoints

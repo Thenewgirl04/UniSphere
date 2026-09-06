@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("authapp", "0004_eventrequest_org"),
+        ("app", "0004_eventrequest_org"),
     ]
 
     operations = [

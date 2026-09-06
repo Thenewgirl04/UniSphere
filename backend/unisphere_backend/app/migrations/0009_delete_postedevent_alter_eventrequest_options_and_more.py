@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("authapp", "0008_eventrequest_flyer"),
+        ("app", "0008_eventrequest_flyer"),
     ]
 
     operations = [

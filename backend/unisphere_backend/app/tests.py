@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from authapp.models import EventRequest
+from app.models import EventRequest
 
 User = get_user_model()
 

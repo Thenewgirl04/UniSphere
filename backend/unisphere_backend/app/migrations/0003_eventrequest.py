@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("authapp", "0002_organization_category_organization_description_and_more"),
+        ("app", "0002_organization_category_organization_description_and_more"),
     ]
 
     operations = [
