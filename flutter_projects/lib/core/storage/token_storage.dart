@@ -26,6 +26,12 @@ class TokenStorage {
 
   static Future<String?> getAccessToken() => _storage.read(key: accessTokenKey);
 
+  static Future<String?> getRefreshToken() =>
+      _storage.read(key: refreshTokenKey);
+
+  static Future<void> saveAccessToken(String token) =>
+      _storage.write(key: accessTokenKey, value: token);
+
   static Future<String?> getUserName() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(userNameKey);

@@ -13,7 +13,10 @@ class ApiClient {
   Future<Map<String, String>> _headers({bool authenticated = false}) async {
     final headers = {'Content-Type': 'application/json'};
     if (authenticated) {
-      final token = await TokenStorage.getAccessToken();
+      var token = await TokenStorage.getAccessToken();
+      if (token != null && _isExpired(token)) {
+        token = await _refreshAccessToken();
+      }
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
@@ -21,10 +24,43 @@ class ApiClient {
     return headers;
   }
 
-  Future<http.Response> get(
-    String path, {
-    bool authenticated = false,
-  }) async {
+  bool _isExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+      final payload =
+          jsonDecode(
+                utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+              )
+              as Map<String, dynamic>;
+      final expiresAt = payload['exp'] as int?;
+      if (expiresAt == null) return true;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      return expiresAt <= now + 30;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<String?> _refreshAccessToken() async {
+    final refreshToken = await TokenStorage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    final response = await _client.post(
+      Uri.parse(Env.apiUrl('/api/token/refresh/')),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'refresh': refreshToken}),
+    );
+    if (response.statusCode != 200) return null;
+
+    final data = decodeBody(response) as Map<String, dynamic>;
+    final accessToken = data['access'] as String?;
+    if (accessToken == null || accessToken.isEmpty) return null;
+    await TokenStorage.saveAccessToken(accessToken);
+    return accessToken;
+  }
+
+  Future<http.Response> get(String path, {bool authenticated = false}) async {
     return _client.get(
       Uri.parse(Env.apiUrl(path)),
       headers: await _headers(authenticated: authenticated),

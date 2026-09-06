@@ -90,7 +90,11 @@ class EventService {
     final data = ApiClient.decodeBody(response);
 
     if (response.statusCode != 200) {
-      throw EventException('Failed to load profile');
+      throw EventException(
+        data is Map && data['detail'] != null
+            ? data['detail'].toString()
+            : 'Failed to load profile',
+      );
     }
 
     return Map<String, dynamic>.from(data as Map);
@@ -116,17 +120,18 @@ class EventService {
     final response = await _api.multipart(
       '/api/org/profile/',
       method: 'PUT',
-      fields: {
-        'name': name,
-        'category': category,
-        'description': description,
-      },
+      fields: {'name': name, 'category': category, 'description': description},
       files: files,
       authenticated: true,
     );
 
     if (response.statusCode != 200) {
-      throw EventException('Failed to update profile');
+      final body = await response.stream.bytesToString();
+      throw EventException(
+        body.isEmpty
+            ? 'Failed to update profile'
+            : 'Failed to update profile: $body',
+      );
     }
   }
 }
